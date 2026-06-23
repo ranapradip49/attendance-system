@@ -1,0 +1,77 @@
+body{
+    margin:0;
+    height:100vh;
+    background-image:url("../assets/images/office.jpg");
+    background-size:cover;
+    background-position:center;
+    background-repeat:no-repeat;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-family:Arial;
+    color:white;
+    overflow:hidden;
+}
+
+.overlay{
+    text-align:center;
+    background:rgba(0,0,0,0.45);
+    padding:1000px;
+    border-radius:20px;
+}
+
+h1{
+    font-size:60px;
+    margin-bottom:20px;
+    text-align:top;
+}
+
+h2{
+    font-size:40px;
+}
+
+h3{
+    font-size:30px;
+    margin-top:50px;
+    animation:blink 1s infinite;
+}
+
+#address{
+    position:absolute;
+    bottom:20px;
+    left:30px;
+    font-size:22px;
+}
+
+#clock{
+    position:absolute;
+    bottom:20px;
+    right:30px;
+    font-size:22px;
+}
+
+@keyframes blink{
+    50%{
+        opacity:0.3;
+    }
+}
+
+#continueBtn{
+
+    margin-top:20px;
+
+    padding:15px 40px;
+
+    font-size:20px;
+
+    border:none;
+
+    border-radius:50px;
+
+    background:#16a34a;
+
+    color:white;
+
+    cursor:pointer;
+
+}
