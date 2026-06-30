@@ -54,9 +54,28 @@ Attendance History
 </tr>
 
 
-?>
-
 </table>
+
+<a class="btn"
+href="save_attendance.php">戻る
+</a>
+
+<style>
+.btn {
+    display: block;
+    margin: 20px auto;
+    width: 250px;
+    padding: 15px;
+    border-radius: 50px;
+    background: white;
+    color: black;
+    text-decoration: none;
+    font-size: 18px;
+    text-align: center;
+    transition: background 0.3s, color 0.3s;
+    margin-top: 600px;
+}
+</style>
 
 
 <div class="hours">
@@ -64,8 +83,6 @@ Attendance History
 Working Hours
 
 <br><br>
-
-
 
 </div>
 

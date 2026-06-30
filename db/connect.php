@@ -1,16 +1,9 @@
-<!-- <?php
+<?php
 
-$conn = new mysqli(
-    "localhost",
-    "root",
-    "",
-    "attendance_system"
-);
+$conn = new mysqli("localhost", "root", "", "attendance_system");
 
 if ($conn->connect_error) {
-    die("Connection Failed: " . $conn->connect_error);
+    die("DB Failed: " . $conn->connect_error);
 }
 
-$conn->set_charset("utf8mb4");
-
-?> -->
+?>
