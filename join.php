@@ -79,77 +79,204 @@ function createProfile() {
 </script>
 
 <style>
-    body {
-    margin: 0;
-    padding: 0;
-    background: black;
-    color: white;
-    font-family: Arial;
-    text-align: center;
+/* Google Font */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:'Poppins',sans-serif;
 }
 
-.container {
-    padding: 20px;
+body{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+    background:#050505;
+    overflow:hidden;
 }
 
-.title {
-    font-size: 60px;
-    font-weight: bold;
-    margin-top: 20px;
+/* Animated RGB Background */
+body::before{
+    content:"";
+    position:fixed;
+    width:500px;
+    height:500px;
+    background:#00ffff;
+    border-radius:50%;
+    filter:blur(180px);
+    animation:move1 8s infinite alternate;
 }
 
-.logo img {
-    width: 120px;
-    height: 120px;
-    margin-top: 10px;
+body::after{
+    content:"";
+    position:fixed;
+    width:450px;
+    height:450px;
+    background:#ff00ff;
+    border-radius:50%;
+    filter:blur(180px);
+    animation:move2 10s infinite alternate;
 }
 
+@keyframes move1{
+    from{
+        top:-100px;
+        left:-100px;
+    }
+    to{
+        top:250px;
+        left:350px;
+    }
+}
+
+@keyframes move2{
+    from{
+        bottom:-100px;
+        right:-100px;
+    }
+    to{
+        bottom:250px;
+        right:350px;
+    }
+}
+
+.container{
+    position:relative;
+    z-index:2;
+    width:420px;
+    padding:40px;
+    text-align:center;
+    background:rgba(0,0,0,.65);
+    backdrop-filter:blur(20px);
+    border-radius:25px;
+    border:2px solid rgba(255,255,255,.15);
+    box-shadow:0 0 50px cyan;
+}
+
+.title{
+    color:white;
+    font-size:40px;
+    margin-bottom:25px;
+    text-shadow:
+        0 0 10px cyan,
+        0 0 20px cyan,
+        0 0 40px cyan;
+}
+
+.logo img{
+    width:150px;
+    height:150px;
+    border-radius:50%;
+    border:4px solid cyan;
+    object-fit:cover;
+    margin-bottom:35px;
+    animation:spinBorder 5s linear infinite;
+    box-shadow:
+        0 0 20px cyan,
+        0 0 40px blue,
+        0 0 60px magenta;
+}
+
+@keyframes spinBorder{
+    100%{
+        transform:rotate(360deg);
+    }
+}
+
+/* Buttons Up and Down */
+.buttons{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:25px;
+}
+
+/* RGB Button */
 .buttons button{
-    display:block;
-    width:200px;
-    margin: 20px auto;
+    width:260px;
+    padding:16px;
+    border:none;
+    outline:none;
+    color:white;
+    font-size:18px;
+    font-weight:bold;
+    letter-spacing:2px;
+    border-radius:50px;
+    cursor:pointer;
+    position:relative;
+    background:#111;
+    overflow:hidden;
+    transition:.4s;
 }
 
-button {
-    padding: 12px 25px;
-    margin: 60px;
-    width: 200px;
-    border: none;
-    cursor: pointer;
-    font-size: 18px;
-    border-radius: 8px;
-    color: rgb(146, 160, 88);
+.buttons button::before{
+    content:"";
+    position:absolute;
+    top:-2px;
+    left:-2px;
+    width:calc(100% + 4px);
+    height:calc(100% + 4px);
+
+    background:linear-gradient(
+        45deg,
+        red,
+        orange,
+        yellow,
+        lime,
+        cyan,
+        blue,
+        violet,
+        red
+    );
+
+    background-size:400%;
+    z-index:-1;
+    border-radius:50px;
+    animation:rgb 5s linear infinite;
 }
 
-button:hover {
-    opacity: 0.8;
+.buttons button::after{
+    content:"";
+    position:absolute;
+    inset:3px;
+    background:#111;
+    border-radius:50px;
+    z-index:-1;
 }
 
-.form-box {
-    margin-top: 20px;
-    display: none;
+@keyframes rgb{
+    0%{
+        background-position:0%;
+    }
+    100%{
+        background-position:400%;
+    }
 }
 
-input {
-    display: block;
-    margin: 10px auto;
-    padding: 12px;
-    width: 250px;
-    border-radius: 5px;
-    border: none;
+.buttons button:hover{
+    transform:scale(1.08);
+    box-shadow:
+        0 0 20px cyan,
+        0 0 40px magenta,
+        0 0 60px lime;
 }
 
-.disclaimer {
-    margin-top: 40px;
-    font-size: 14px;
-    color: lightgray;
-    padding: 10px;
+.disclaimer{
+    margin-top:35px;
+    color:#ddd;
+    font-size:14px;
+    line-height:1.6;
 }
 
-footer {
-    margin-top: 40px;
-    font-size: 16px;
+footer{
+    margin-top:25px;
+    color:#aaa;
+    font-size:13px;
 }
+
 </style>
 
 </body>

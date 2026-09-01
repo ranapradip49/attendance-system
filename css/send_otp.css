@@ -1,0 +1,76 @@
+/* Google Font */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap');
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:'Poppins', sans-serif;
+}
+
+body{
+    background:linear-gradient(135deg,#1e3c72,#2a5298);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+}
+
+.container{
+    width:420px;
+    background:#fff;
+    border-radius:15px;
+    padding:40px;
+    text-align:center;
+    box-shadow:0 10px 30px rgba(0,0,0,0.3);
+}
+
+.success{
+    color:#28a745;
+    font-size:28px;
+    margin-bottom:20px;
+}
+
+.message{
+    color:#555;
+    font-size:18px;
+    margin-bottom:20px;
+}
+
+.otp-box{
+    background:#f5f5f5;
+    border:2px dashed #2a5298;
+    border-radius:10px;
+    padding:20px;
+    margin:20px 0;
+}
+
+.otp{
+    font-size:38px;
+    font-weight:bold;
+    color:#1e3c72;
+    letter-spacing:6px;
+}
+
+a{
+    display:inline-block;
+    margin-top:25px;
+    padding:12px 30px;
+    background:#2a5298;
+    color:#fff;
+    text-decoration:none;
+    border-radius:30px;
+    font-size:16px;
+    transition:0.3s;
+}
+
+a:hover{
+    background:#1e3c72;
+    transform:translateY(-2px);
+}
+
+.error{
+    color:#dc3545;
+    font-size:18px;
+    margin-top:15px;
+}

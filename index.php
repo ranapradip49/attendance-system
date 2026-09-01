@@ -46,7 +46,7 @@ updateClock();
 
 document.addEventListener("click",function(){
 
-window.location.href="join.php";
+window.location.href="action.php";
 
 });
 

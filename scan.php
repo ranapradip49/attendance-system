@@ -1,190 +1,345 @@
+<?php
+
+session_start();
+
+if(!isset($_SESSION['user_id'])){
+    header("Location:index.php");
+    exit();
+}
+
+?>
+
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 
 <head>
 
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Attendance Scanner</title>
+<title>Face Attendance Scan</title>
 
-<script src="https://unpkg.com/html5-qrcode"></script>
+
+<script src="face-api.js-master/dist/face-api.min.js"></script>
+
 
 <style>
 
+
 *{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Arial;
 }
+
 
 body{
-    background:#0f172a;
-    color:white;
-    font-family:Arial,sans-serif;
-    height:100vh;
+
+height:100vh;
+
+background:#050505;
+
+display:flex;
+
+justify-content:center;
+
+align-items:center;
+
+color:white;
+
 }
 
-.container{
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    height:100vh;
+
+.box{
+
+text-align:center;
+
+padding:40px;
+
+border-radius:25px;
+
+border:2px solid cyan;
+
+box-shadow:
+
+0 0 20px cyan,
+
+0 0 50px magenta;
+
+background:rgba(0,0,0,.8);
+
 }
 
-.company-name{
-    font-size:48px;
-    font-weight:bold;
-    margin-bottom:20px;
+
+
+h1{
+
+margin-bottom:20px;
+
+text-shadow:
+0 0 20px cyan;
+
 }
 
-.subtitle{
-    font-size:24px;
-    margin-bottom:30px;
+
+
+video{
+
+border-radius:20px;
+
+border:3px solid #00ffff;
+
+box-shadow:
+
+0 0 20px cyan;
+
 }
 
-#reader{
-    width:450px;
-    max-width:90%;
-    background:white;
-    border-radius:15px;
-    padding:15px;
-}
+
 
 #status{
-    margin-top:20px;
-    font-size:22px;
-    color:#facc15;
+
+margin-top:20px;
+
+font-size:20px;
+
+color:#00ff99;
+
 }
 
-.cancel-btn{
-    margin-top:30px;
-    text-decoration:none;
-    color:white;
-    background:#dc2626;
-    padding:15px 40px;
-    border-radius:50px;
-    font-size:20px;
-}
-
-.clock{
-    position:absolute;
-    right:30px;
-    bottom:20px;
-    font-size:22px;
-}
 
 </style>
 
+
 </head>
+
+
 
 <body>
 
-<div class="container">
 
-<div class="company-name">
-ABC COMPANY
-</div>
 
-<div class="subtitle">
-Please Scan Employee Card
-</div>
+<div class="box">
 
-<div id="reader"></div>
+
+<h1>
+顔認証出勤
+</h1>
+
+
+<video 
+id="video"
+width="400"
+height="300"
+autoplay>
+</video>
+
 
 <div id="status">
-Waiting for camera permission...
-</div>
 
-<a href="index.php" class="cancel-btn">
-Cancel
-</a>
-
-<a href="action.php" class="action-btn">
-        Open Action Page (Test)
-    </a>
+顔を確認しています...
 
 </div>
 
-<div class="clock" id="clock"></div>
+
+</div>
+
+
+
+
 
 <script>
 
-// Live Clock
-function updateClock(){
 
-    const now = new Date();
+const video =
+document.getElementById("video");
 
-    document.getElementById("clock").innerHTML =
-    now.toLocaleString();
 
-}
-
-setInterval(updateClock,1000);
-updateClock();
-
-const statusText =
+const status =
 document.getElementById("status");
 
-let scanned = false;
 
-function onScanSuccess(decodedText) {
 
-    if (scanned) return;
 
-    scanned = true;
 
-    // alert("Scanned Data: " + decodedText);
+Promise.all([
 
-    window.location.href = "action.php?code=" + encodeURIComponent(decodedText);
+
+faceapi.nets.faceRecognitionNet.loadFromUri(
+'face-api.js-master/weights'
+)
+
+faceapi.nets.faceLandmark68Net.loadFromUri(
+'face-api.js-master/weights'
+)
+
+faceapi.nets.ssdMobilenetv1.loadFromUri(
+'face-api.js-master/weights'
+)
+
+
+
+]).then(startCamera);
+
+
+
+
+
+function startCamera(){
+
+
+navigator.mediaDevices
+.getUserMedia({
+
+video:true
+
+})
+
+
+.then(stream=>{
+
+video.srcObject=stream;
+
+
+startScan();
+
+
+});
+
 
 }
 
-function onScanFailure(error){
+
+
+
+
+
+function startScan(){
+
+
+
+setInterval(async()=>{
+
+
+
+const detection =
+
+await faceapi
+.detectSingleFace(video)
+.withFaceLandmarks()
+.withFaceDescriptor();
+
+
+
+
+
+if(!detection){
+
+
+status.innerHTML=
+"顔が見つかりません";
+
+
+return;
+
 
 }
 
-const scanner =
-new Html5QrcodeScanner(
-    "reader",
-    {
-        fps:10,
-        qrbox:{width:250,height:250},
-        rememberLastUsedCamera:true
-    }
+
+
+
+
+status.innerHTML=
+"確認中...";
+
+
+
+
+
+let descriptor =
+
+Array.from(
+detection.descriptor
 );
 
-async function startScanner(){
 
-    try{
 
-        await navigator.mediaDevices.getUserMedia({
-            video:true
-        });
 
-        statusText.innerHTML =
-        "Camera Ready. Scan QR or Barcode.";
 
-        scanner.render(
-            onScanSuccess,
-            onScanFailure
-        );
+fetch("verify_face.php",{
 
-    }
 
-    catch(error){
+method:"POST",
 
-        statusText.innerHTML =
-        "Camera permission denied. Please allow camera access.";
 
-    }
+headers:{
+
+
+"Content-Type":
+"application/json"
+
+
+},
+
+
+body:JSON.stringify({
+
+descriptor:descriptor
+
+})
+
+
+
+})
+
+
+.then(res=>res.text())
+
+
+.then(data=>{
+
+
+
+if(data=="success"){
+
+
+status.innerHTML=
+"認証成功";
+
+
+window.location=
+"history.php";
+
 
 }
 
-startScanner();
+else{
+
+
+status.innerHTML=
+"認証失敗";
+
+
+}
+
+
+
+});
+
+
+
+
+
+},3000);
+
+
+
+}
+
+
 
 </script>
+
 
 </body>
 
