@@ -192,22 +192,31 @@ $users = $conn->query(
         }
 
         .neon-btn {
-            display: block;
-            width: 100%;
-            box-sizing: border-box;
-            padding: 14px 20px;
-            text-align: center;
-            text-decoration: none;
-            font-size: 18px;
-            font-weight: bold;
-            letter-spacing: 2px;
-            border-radius: 50px;
-            transition: all 0.3s ease;
-            background: transparent;
-            pointer-events: none; /* Disabled by default */
-            opacity: 2;         /* Muted state */
-            filter: grayscale(80%);
-        }
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 14px 20px;
+    text-align: center;
+    text-decoration: none;
+    font-size: 18px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    border-radius: 50px;
+    transition: all 0.3s ease;
+    background: transparent;
+
+    /* disabled */
+    pointer-events: none;
+    opacity: 0.4;
+    filter: grayscale(80%);
+}
+
+.action-panel.user-chosen .neon-btn {
+    pointer-events: auto;
+    opacity: 1;
+    filter: none;
+    cursor: pointer;
+}
 
         /* Enabled State via JavaScript */
         .action-panel.user-chosen .neon-btn {
@@ -357,10 +366,11 @@ class="user-avatar">
         </div>
 
         <div class="action-panel" id="actionPanel">
-            <a class="neon-btn btn-clock-in" id="btn-in" href="#">出勤</a>
-            <a class="neon-btn btn-break-start" id="btn-bstart" href="#">休憩入り</a>
-            <a class="neon-btn btn-break-end" id="btn-bend" href="#">休憩戻り</a>
-            <a class="neon-btn btn-clock-out" id="btn-out" href="#">退勤</a>
+            <a class="neon-btn btn-clock-in" id="btn-in" href="scan.php?code=&type=出勤">出勤</a>
+            <a class="neon-btn btn-break-start" id="btn-bstart" href="scan.php?code=&type=休憩入り">休憩入り</a>
+            <a class="neon-btn btn-break-end" id="btn-bend" href="scan.php?code=&type=休憩戻り">休憩戻り</a>
+            <a class="neon-btn btn-clock-out" id="btn-out" href="scan.php?code=&type=退勤">退勤</a>
+
         </div>
         
     </div>

@@ -1,49 +1,97 @@
+<?php
+
+session_start();
+
+include "db/connect.php";
 
 
-<!DOCTYPE html>
-<html>
-<head>
+/* =========================================
+   CHECK PENDING ATTENDANCE
+========================================= */
 
-<meta charset="UTF-8">
+if (!isset($_SESSION['pending_attendance'])) {
 
-<title>Saved</title>
+    exit("No attendance data found.");
 
-<style>
-
-body{
-    background:#111;
-    color:white;
-    text-align:center;
-    font-family:Arial;
 }
 
-.btn{
-    display:inline-block;
-    margin:20px;
-    padding:15px 30px;
-    background:white;
-    color:black;
-    text-decoration:none;
-    border-radius:50px;
+
+$data = $_SESSION['pending_attendance'];
+
+
+$user_id   = $data['user_id'];
+$symbol_no = $data['symbol_no'];
+$name      = $data['name'];
+$action    = $data['action'];
+
+
+/* =========================================
+   SAVE ATTENDANCE
+========================================= */
+
+$attendance_sql = $conn->prepare("
+    INSERT INTO attendance
+    (
+        user_id,
+        symbol_no,
+        name,
+        action,
+        date_time
+    )
+    VALUES
+    (
+        ?,
+        ?,
+        ?,
+        ?,
+        NOW()
+    )
+");
+
+
+$attendance_sql->bind_param(
+    "isss",
+    $user_id,
+    $symbol_no,
+    $name,
+    $action
+);
+
+
+if (!$attendance_sql->execute()) {
+
+    exit(
+        "Failed to save attendance: "
+        . $attendance_sql->error
+    );
+
 }
 
-</style>
 
-</head>
+/* =========================================
+   SET LOGIN USER
+========================================= */
 
-<body>
-
-<h2>完了しました。</h2>
+$_SESSION['user_id'] = $user_id;
 
 
-<a class="btn" href="index.php">
-ホームページ
-</a>
+/* =========================================
+   REMOVE PENDING DATA
+========================================= */
 
-<a class="btn"
-href="history.php?code=">
-歴史
-</a>
+unset(
+    $_SESSION['pending_attendance']
+);
 
-</body>
-</html>
+
+/* =========================================
+   GO TO HISTORY
+========================================= */
+
+header(
+    "Location: history.php"
+);
+
+exit;
+
+?>

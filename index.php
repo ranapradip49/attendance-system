@@ -3,7 +3,7 @@
 
 <head>
 
-<title>Attendance System</title>
+<title>YSE Attendance System</title>
 
 <link rel="stylesheet" href="css/style.css">
 
@@ -13,10 +13,9 @@
 
 <div class="overlay">
 
-<h1>Attendance System</h1>
+<h1>YSE Attendance System</h1>
 
-<h2>Scan your QR Code
-    to mark your attendance.
+<h2>Welcome</h2>
 </h2>
 
 <h3>Touch Anywhere to Continue</h3>
@@ -24,7 +23,7 @@
 </div>
 
 <div id="address">
-Tokyo, Japan
+Kanagawa, Japan
 </div>
 
 <div id="clock"></div>

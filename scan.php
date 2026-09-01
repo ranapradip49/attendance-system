@@ -2,136 +2,242 @@
 
 session_start();
 
-if(!isset($_SESSION['user_id'])){
-    header("Location:index.php");
-    exit();
+include "db/connect.php";
+
+
+/* =========================================
+   GET VALUES
+========================================= */
+
+$symbol_no = $_GET['code'] ?? '';
+$action    = $_GET['type'] ?? '';
+
+
+/* =========================================
+   VALIDATE
+========================================= */
+
+$allowed_actions = [
+    "出勤",
+    "休憩入り",
+    "休憩戻り",
+    "退勤"
+];
+
+
+if ($symbol_no === '') {
+    exit("Symbol number is missing. Please select a user from action.php.");
+}
+
+
+if (!in_array($action, $allowed_actions, true)) {
+    exit("Invalid action.");
+}
+
+
+/* =========================================
+   FIND USER
+========================================= */
+
+$user_sql = $conn->prepare("
+    SELECT id, symbol_no, name
+    FROM users
+    WHERE symbol_no = ?
+    AND is_verified = 1
+    LIMIT 1
+");
+
+$user_sql->bind_param(
+    "s",
+    $symbol_no
+);
+
+$user_sql->execute();
+
+$result = $user_sql->get_result();
+
+$user = $result->fetch_assoc();
+
+
+if (!$user) {
+    exit("User not found or not verified.");
+}
+
+
+/* =========================================
+   STORE PENDING ATTENDANCE IN SESSION
+========================================= */
+
+$_SESSION['pending_attendance'] = [
+    'user_id'   => $user['id'],
+    'symbol_no' => $user['symbol_no'],
+    'name'      => $user['name'],
+    'action'    => $action
+];
+
+
+/* =========================================
+   TITLE
+========================================= */
+
+switch ($action) {
+
+    case "休憩入り":
+        $title = "顔認証休憩入り";
+        break;
+
+    case "休憩戻り":
+        $title = "顔認証休憩戻り";
+        break;
+
+    case "退勤":
+        $title = "顔認証退勤";
+        break;
+
+    default:
+        $title = "顔認証出勤";
 }
 
 ?>
 
+
 <!DOCTYPE html>
+
 <html lang="ja">
 
 <head>
 
 <meta charset="UTF-8">
 
-<title>Face Attendance Scan</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<title>Face Attendance Scan</title>
 
 <script src="face-api.js-master/dist/face-api.min.js"></script>
 
 
 <style>
 
-
 *{
-margin:0;
-padding:0;
-box-sizing:border-box;
-font-family:Arial;
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial;
 }
 
 
 body{
 
-height:100vh;
+    height:100vh;
 
-background:#050505;
+    background:#050505;
 
-display:flex;
+    display:flex;
 
-justify-content:center;
+    justify-content:center;
 
-align-items:center;
+    align-items:center;
 
-color:white;
+    color:white;
 
 }
 
 
 .box{
 
-text-align:center;
+    text-align:center;
 
-padding:40px;
+    padding:40px;
 
-border-radius:25px;
+    border-radius:25px;
 
-border:2px solid cyan;
+    border:2px solid cyan;
 
-box-shadow:
+    box-shadow:
+        0 0 20px cyan,
+        0 0 50px magenta;
 
-0 0 20px cyan,
-
-0 0 50px magenta;
-
-background:rgba(0,0,0,.8);
+    background:rgba(0,0,0,.8);
 
 }
-
 
 
 h1{
 
-margin-bottom:20px;
+    margin-bottom:20px;
 
-text-shadow:
-0 0 20px cyan;
+    text-shadow:
+        0 0 20px cyan;
 
 }
-
 
 
 video{
 
-border-radius:20px;
+    border-radius:20px;
 
-border:3px solid #00ffff;
+    border:3px solid #00ffff;
 
-box-shadow:
-
-0 0 20px cyan;
+    box-shadow:
+        0 0 20px cyan;
 
 }
 
 
-
 #status{
 
-margin-top:20px;
+    margin-top:20px;
 
-font-size:20px;
+    font-size:20px;
 
-color:#00ff99;
+    color:#00ff99;
+
+}
+
+
+.back-btn{
+
+    display:inline-block;
+
+    margin-top:20px;
+
+    padding:10px 20px;
+
+    border:1px solid cyan;
+
+    border-radius:10px;
+
+    color:white;
+
+    text-decoration:none;
 
 }
 
 
 </style>
 
-
 </head>
 
 
-
 <body>
-
 
 
 <div class="box">
 
 
 <h1>
-顔認証出勤
+
+<?= htmlspecialchars($title) ?>
+
 </h1>
 
 
-<video 
-id="video"
-width="400"
-height="300"
-autoplay>
+<video
+    id="video"
+    width="400"
+    height="300"
+    autoplay
+    muted>
 </video>
 
 
@@ -142,10 +248,15 @@ autoplay>
 </div>
 
 
+<a
+    href="action.php"
+    class="back-btn"
+>
+    ← 戻る
+</a>
+
+
 </div>
-
-
-
 
 
 <script>
@@ -159,184 +270,189 @@ const status =
 document.getElementById("status");
 
 
+let successCount = 0;
+
+let scanInterval;
 
 
+/* =========================================
+   LOAD FACE MODELS
+========================================= */
 
 Promise.all([
 
+    faceapi.nets.faceRecognitionNet.loadFromUri(
+        'face-api.js-master/weights'
+    ),
 
-faceapi.nets.faceRecognitionNet.loadFromUri(
-'face-api.js-master/weights'
-)
+    faceapi.nets.faceLandmark68Net.loadFromUri(
+        'face-api.js-master/weights'
+    ),
 
-faceapi.nets.faceLandmark68Net.loadFromUri(
-'face-api.js-master/weights'
-)
-
-faceapi.nets.ssdMobilenetv1.loadFromUri(
-'face-api.js-master/weights'
-)
-
-
+    faceapi.nets.ssdMobilenetv1.loadFromUri(
+        'face-api.js-master/weights'
+    )
 
 ]).then(startCamera);
 
 
-
-
+/* =========================================
+   CAMERA
+========================================= */
 
 function startCamera(){
 
+    navigator.mediaDevices
+    .getUserMedia({
+        video:true
+    })
 
-navigator.mediaDevices
-.getUserMedia({
+    .then(stream => {
 
-video:true
+        video.srcObject = stream;
 
-})
+        startScan();
 
+    })
 
-.then(stream=>{
+    .catch(error => {
 
-video.srcObject=stream;
+        status.innerHTML =
+            "カメラを使用できません";
 
+        console.error(error);
 
-startScan();
-
-
-});
-
+    });
 
 }
 
 
-
-
-
+/* =========================================
+   FACE SCAN
+========================================= */
 
 function startScan(){
 
+    scanInterval = setInterval(async () => {
 
 
-setInterval(async()=>{
+        try {
+
+            const detection =
+                await faceapi
+                .detectSingleFace(video)
+                .withFaceLandmarks()
+                .withFaceDescriptor();
 
 
+            if(!detection){
 
-const detection =
+                status.innerHTML =
+                    "顔が見つかりません";
 
-await faceapi
-.detectSingleFace(video)
-.withFaceLandmarks()
-.withFaceDescriptor();
+                return;
 
-
-
+            }
 
 
-if(!detection){
+            status.innerHTML =
+                "確認中...";
 
 
-status.innerHTML=
-"顔が見つかりません";
+            const descriptor =
+                Array.from(
+                    detection.descriptor
+                );
 
 
-return;
+            fetch("verify_face.php", {
 
+                method:"POST",
+
+                headers:{
+                    "Content-Type":
+                    "application/json"
+                },
+
+                body:JSON.stringify({
+
+                    descriptor: descriptor,
+
+                    symbol_no:
+                    "<?= htmlspecialchars($symbol_no) ?>"
+
+                })
+
+            })
+
+
+            .then(res => res.text())
+
+
+            .then(data => {
+
+
+                if(data.trim() === "success"){
+
+                    successCount++;
+
+
+                    status.innerHTML =
+                        "認証成功 (" +
+                        successCount +
+                        "/2)";
+
+
+                    if(successCount >= 2){
+
+                        clearInterval(
+                            scanInterval
+                        );
+
+
+                        status.innerHTML =
+                            "認証完了";
+
+
+                        /*
+                         * IMPORTANT:
+                         * Save attendance only
+                         * after face verification.
+                         */
+
+                        window.location =
+                            "save_attendance.php";
+
+                    }
+
+
+                }else{
+
+                    successCount = 0;
+
+                    status.innerHTML =
+                        "認証失敗";
+
+                }
+
+            });
+
+
+        }
+
+        catch(error){
+
+            console.error(error);
+
+            status.innerHTML =
+                "認証エラー";
+
+        }
+
+
+    },3000);
 
 }
-
-
-
-
-
-status.innerHTML=
-"確認中...";
-
-
-
-
-
-let descriptor =
-
-Array.from(
-detection.descriptor
-);
-
-
-
-
-
-fetch("verify_face.php",{
-
-
-method:"POST",
-
-
-headers:{
-
-
-"Content-Type":
-"application/json"
-
-
-},
-
-
-body:JSON.stringify({
-
-descriptor:descriptor
-
-})
-
-
-
-})
-
-
-.then(res=>res.text())
-
-
-.then(data=>{
-
-
-
-if(data=="success"){
-
-
-status.innerHTML=
-"認証成功";
-
-
-window.location=
-"history.php";
-
-
-}
-
-else{
-
-
-status.innerHTML=
-"認証失敗";
-
-
-}
-
-
-
-});
-
-
-
-
-
-},3000);
-
-
-
-}
-
-
 
 </script>
 
