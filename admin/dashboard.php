@@ -2,149 +2,393 @@
 
 session_start();
 
+include "../db/connect.php";
+
+
+/* =========================================
+   ADMIN LOGIN CHECK
+========================================= */
+
 if (!isset($_SESSION['admin_id'])) {
 
     header("Location: login.php");
+
     exit();
 
 }
 
-include "../db/connect.php";
+
+$admin_username =
+    $_SESSION['admin_username'];
 
 
-// Total users
+/* =========================================
+   TOTAL USERS
+========================================= */
 
-$userQuery = $conn->query("
+$result = $conn->query("
+
     SELECT COUNT(*) AS total
+
     FROM users
+
+");
+
+$total_users =
+    $result->fetch_assoc()['total'];
+
+
+/* =========================================
+   VERIFIED USERS
+========================================= */
+
+$result = $conn->query("
+
+    SELECT COUNT(*) AS total
+
+    FROM users
+
     WHERE is_verified = 1
+
 ");
 
-$totalUsers = $userQuery->fetch_assoc()['total'];
+$verified_users =
+    $result->fetch_assoc()['total'];
 
 
-// Today's attendance
+/* =========================================
+   TODAY'S ATTENDANCE
+========================================= */
 
-$todayQuery = $conn->query("
-    SELECT COUNT(*) AS total
+$result = $conn->query("
+
+    SELECT COUNT(DISTINCT user_id) AS total
+
     FROM attendance
+
     WHERE DATE(date_time) = CURDATE()
-");
 
-$todayAttendance = $todayQuery->fetch_assoc()['total'];
-
-
-// Today's check-in
-
-$checkinQuery = $conn->query("
-    SELECT COUNT(*) AS total
-    FROM attendance
-    WHERE DATE(date_time) = CURDATE()
     AND action = '出勤'
+
 ");
 
-$todayCheckin = $checkinQuery->fetch_assoc()['total'];
+$today_attendance =
+    $result->fetch_assoc()['total'];
 
 
-// Today's checkout
+/* =========================================
+   CURRENTLY WORKING
+========================================= */
 
-$checkoutQuery = $conn->query("
+$result = $conn->query("
+
     SELECT COUNT(*) AS total
-    FROM attendance
-    WHERE DATE(date_time) = CURDATE()
-    AND action = '退勤'
+
+    FROM (
+
+        SELECT
+            user_id,
+            MAX(date_time) AS last_time
+
+        FROM attendance
+
+        WHERE DATE(date_time) = CURDATE()
+
+        GROUP BY user_id
+
+    ) AS latest
+
+    INNER JOIN attendance a
+
+        ON a.user_id = latest.user_id
+
+        AND a.date_time = latest.last_time
+
+    WHERE a.action IN (
+        '出勤',
+        '休憩戻り'
+    )
+
 ");
 
-$todayCheckout = $checkoutQuery->fetch_assoc()['total'];
+$currently_working =
+    $result->fetch_assoc()['total'];
 
 
-// Recent attendance
+/* =========================================
+   TOTAL ATTENDANCE RECORDS TODAY
+========================================= */
 
-$recentQuery = $conn->query("
-    SELECT
-        attendance.*,
-        users.name,
-        users.symbol_no,
-        users.photo
+$result = $conn->query("
+
+    SELECT COUNT(*) AS total
+
     FROM attendance
-    JOIN users
-        ON attendance.user_id = users.id
-    ORDER BY attendance.date_time DESC
-    LIMIT 10
+
+    WHERE DATE(date_time) = CURDATE()
+
+");
+
+$today_records =
+    $result->fetch_assoc()['total'];
+
+
+/* =========================================
+   GET USERS
+========================================= */
+
+$users = $conn->query("
+
+    SELECT
+
+        id,
+        symbol_no,
+        name,
+        email,
+        is_verified,
+        photo
+
+    FROM users
+
+    ORDER BY id DESC
+
+");
+
+
+/* =========================================
+   TODAY'S RECORDS
+========================================= */
+
+$attendance = $conn->query("
+
+    SELECT
+
+        symbol_no,
+        name,
+        action,
+        date_time
+
+    FROM attendance
+
+    WHERE DATE(date_time) = CURDATE()
+
+    ORDER BY date_time DESC
+
+    LIMIT 20
+
 ");
 
 ?>
 
 <!DOCTYPE html>
-<html lang="ja">
+
+<html lang="en">
 
 <head>
 
 <meta charset="UTF-8">
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
 
-<title>Admin Dashboard</title>
+<title>
+    Admin Dashboard
+</title>
+
 
 <style>
+
+/* =========================================
+   GLOBAL
+========================================= */
 
 *{
 
     margin:0;
+
     padding:0;
+
     box-sizing:border-box;
-    font-family:Arial,sans-serif;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
 
 }
+
 
 body{
 
     min-height:100vh;
 
-    background:#050505;
+    background:
+
+        radial-gradient(
+            circle at top left,
+            #17243a,
+            #080b12 45%,
+            #030406
+        );
 
     color:white;
 
 }
 
 
-/* =========================
-   HEADER
-========================= */
+/* =========================================
+   SIDEBAR
+========================================= */
 
-.header{
+.sidebar{
 
-    height:80px;
+    position:fixed;
 
-    display:flex;
+    left:0;
 
-    align-items:center;
+    top:0;
 
-    justify-content:space-between;
+    width:240px;
 
-    padding:0 35px;
+    height:100vh;
 
-    background:#0d0e15;
+    padding:25px 15px;
 
-    border-bottom:2px solid #00ffff;
+    background:
+        rgba(5,8,15,.97);
 
-    box-shadow:0 0 20px rgba(0,255,255,.3);
+    border-right:
+        1px solid
+        rgba(0,243,255,.2);
+
+    box-shadow:
+        10px 0 30px
+        rgba(0,0,0,.3);
 
 }
+
 
 .logo{
 
-    font-size:24px;
+    text-align:center;
+
+    color:#00f3ff;
+
+    font-size:26px;
 
     font-weight:bold;
 
-    color:#00ffff;
+    padding:20px 0;
+
+    text-shadow:
+        0 0 15px cyan;
+
+}
+
+
+.logo span{
+
+    display:block;
+
+    color:#77859a;
+
+    font-size:11px;
+
+    margin-top:7px;
 
     letter-spacing:2px;
 
-    text-shadow:0 0 10px cyan;
+}
+
+
+.nav{
+
+    margin-top:35px;
 
 }
+
+
+.nav a{
+
+    display:block;
+
+    padding:15px;
+
+    margin-bottom:10px;
+
+    color:#aab4c3;
+
+    text-decoration:none;
+
+    border-radius:10px;
+
+    transition:.25s;
+
+}
+
+
+.nav a:hover,
+.nav a.active{
+
+    background:
+        rgba(0,243,255,.1);
+
+    color:#00f3ff;
+
+    box-shadow:
+        inset 3px 0 0 #00f3ff;
+}
+
+
+/* =========================================
+   MAIN
+========================================= */
+
+.main{
+
+    margin-left:240px;
+
+    padding:25px;
+
+}
+
+
+/* =========================================
+   HEADER
+========================================= */
+
+.header{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    margin-bottom:25px;
+
+}
+
+
+.header h1{
+
+    font-size:28px;
+
+    letter-spacing:2px;
+
+}
+
+
+.header p{
+
+    color:#718096;
+
+    margin-top:5px;
+
+}
+
 
 .admin-info{
 
@@ -152,86 +396,63 @@ body{
 
     align-items:center;
 
-    gap:20px;
+    gap:15px;
 
 }
+
 
 .admin-name{
 
-    color:#00ff99;
+    padding:10px 15px;
+
+    border-radius:10px;
+
+    background:
+        rgba(0,243,255,.07);
+
+    border:
+        1px solid
+        rgba(0,243,255,.2);
+
+    color:#00f3ff;
 
 }
 
+
 .logout{
 
-    padding:10px 20px;
+    padding:10px 18px;
 
-    border:1px solid #ff0055;
-
-    border-radius:20px;
+    border-radius:10px;
 
     color:#ff0055;
 
     text-decoration:none;
 
-    transition:.3s;
+    border:
+        1px solid
+        rgba(255,0,85,.4);
+
+    transition:.25s;
 
 }
+
 
 .logout:hover{
 
     background:#ff0055;
 
-    color:#000;
+    color:white;
 
-    box-shadow:0 0 20px #ff0055;
-
-}
-
-
-/* =========================
-   MAIN
-========================= */
-
-.container{
-
-    padding:35px;
+    box-shadow:
+        0 0 15px #ff0055;
 
 }
 
 
-/* =========================
-   TITLE
-========================= */
-
-.title{
-
-    margin-bottom:30px;
-
-}
-
-.title h1{
-
-    color:#fff;
-
-    font-size:32px;
-
-    text-shadow:0 0 15px cyan;
-
-}
-
-.title p{
-
-    margin-top:8px;
-
-    color:#888;
-
-}
-
-
-/* =========================
+/* =========================================
    STAT CARDS
-========================= */
+========================================= */
 
 .stats{
 
@@ -240,148 +461,162 @@ body{
     grid-template-columns:
         repeat(4,1fr);
 
-    gap:20px;
+    gap:18px;
 
-    margin-bottom:35px;
+    margin-bottom:25px;
 
 }
+
 
 .card{
 
-    padding:25px;
+    padding:22px;
 
-    background:#0d0e15;
+    border-radius:16px;
 
-    border:1px solid #00ffff;
+    background:
+        rgba(15,20,32,.9);
 
-    border-radius:18px;
+    border:
+        1px solid
+        rgba(0,243,255,.12);
 
-    box-shadow:0 0 15px rgba(0,255,255,.2);
-
-    transition:.3s;
-
-}
-
-.card:hover{
-
-    transform:translateY(-5px);
-
-    box-shadow:0 0 30px rgba(0,255,255,.5);
+    box-shadow:
+        0 10px 30px
+        rgba(0,0,0,.3);
 
 }
 
-.card-title{
 
-    color:#aaa;
+.card-label{
 
-    margin-bottom:15px;
+    color:#7f8da3;
+
+    font-size:13px;
+
+    margin-bottom:10px;
 
 }
 
-.card-number{
 
-    font-size:35px;
+.card-value{
+
+    font-size:32px;
 
     font-weight:bold;
 
-    color:#00ffff;
+}
 
-    text-shadow:0 0 10px cyan;
+
+.card.cyan
+.card-value{
+
+    color:#00f3ff;
 
 }
 
-.green{
 
-    color:#00ff99;
+.card.green
+.card-value{
 
-    text-shadow:0 0 10px #00ff99;
+    color:#39ff14;
 
 }
 
-.pink{
+
+.card.pink
+.card-value{
 
     color:#ff0055;
 
-    text-shadow:0 0 10px #ff0055;
+}
+
+
+.card.orange
+.card-value{
+
+    color:#ffaa00;
 
 }
 
 
-/* =========================
-   ACTIONS
-========================= */
+/* =========================================
+   CONTENT GRID
+========================================= */
 
-.actions{
+.content-grid{
 
     display:grid;
 
     grid-template-columns:
-        repeat(4,1fr);
+        1fr 1fr;
 
-    gap:15px;
+    gap:20px;
 
-    margin-bottom:35px;
-
-}
-
-.action-btn{
-
-    padding:18px;
-
-    text-align:center;
-
-    text-decoration:none;
-
-    color:#00ffff;
-
-    border:1px solid #00ffff;
-
-    border-radius:15px;
-
-    background:#0d0e15;
-
-    transition:.3s;
-
-}
-
-.action-btn:hover{
-
-    background:#00ffff;
-
-    color:#000;
-
-    box-shadow:0 0 25px cyan;
+    margin-bottom:20px;
 
 }
 
 
-/* =========================
+.panel{
+
+    background:
+        rgba(10,13,20,.95);
+
+    border:
+        1px solid
+        rgba(0,243,255,.13);
+
+    border-radius:16px;
+
+    overflow:hidden;
+
+}
+
+
+.panel-header{
+
+    padding:18px 20px;
+
+    border-bottom:
+        1px solid
+        rgba(255,255,255,.06);
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+}
+
+
+.panel-header h2{
+
+    font-size:17px;
+
+}
+
+
+.panel-header span{
+
+    color:#00f3ff;
+
+    font-size:12px;
+
+}
+
+
+/* =========================================
    TABLE
-========================= */
+========================================= */
 
-.table-box{
-
-    background:#0d0e15;
-
-    border:1px solid #00ffff;
-
-    border-radius:18px;
-
-    padding:20px;
+.table-wrapper{
 
     overflow-x:auto;
 
 }
 
-.table-title{
-
-    color:#00ffff;
-
-    font-size:22px;
-
-    margin-bottom:20px;
-
-}
 
 table{
 
@@ -391,62 +626,162 @@ table{
 
 }
 
+
 th{
 
     padding:14px;
 
-    background:#111;
+    text-align:left;
 
-    color:#00ffff;
+    font-size:12px;
 
-    border-bottom:1px solid #00ffff;
+    color:#00f3ff;
+
+    background:
+        rgba(0,243,255,.05);
 
 }
+
 
 td{
 
-    padding:14px;
+    padding:13px 14px;
 
-    text-align:center;
+    font-size:13px;
 
-    border-bottom:1px solid #222;
+    color:#d4dbe5;
+
+    border-top:
+        1px solid
+        rgba(255,255,255,.04);
 
 }
+
 
 tr:hover{
 
-    background:rgba(0,255,255,.05);
+    background:
+        rgba(0,243,255,.04);
 
 }
 
-.photo{
 
-    width:45px;
+/* =========================================
+   STATUS
+========================================= */
 
-    height:45px;
+.status{
 
-    border-radius:50%;
+    display:inline-block;
 
-    object-fit:cover;
+    padding:5px 10px;
 
-    border:1px solid #00ffff;
+    border-radius:20px;
+
+    font-size:11px;
 
 }
+
+
+.verified{
+
+    color:#39ff14;
+
+    background:
+        rgba(57,255,20,.08);
+
+}
+
+
+.unverified{
+
+    color:#ff0055;
+
+    background:
+        rgba(255,0,85,.08);
+
+}
+
+
+/* =========================================
+   ACTION
+========================================= */
 
 .action{
 
-    color:#00ff99;
+    display:inline-block;
+
+    padding:5px 10px;
+
+    border-radius:20px;
+
+    font-size:11px;
 
     font-weight:bold;
 
 }
 
 
-/* =========================
-   RESPONSIVE
-========================= */
+.in{
 
-@media(max-width:900px){
+    color:#39ff14;
+
+    background:
+        rgba(57,255,20,.08);
+
+}
+
+
+.break-in{
+
+    color:#ffaa00;
+
+    background:
+        rgba(255,170,0,.08);
+
+}
+
+
+.break-out{
+
+    color:#00f3ff;
+
+    background:
+        rgba(0,243,255,.08);
+
+}
+
+
+.out{
+
+    color:#ff0055;
+
+    background:
+        rgba(255,0,85,.08);
+
+}
+
+
+/* =========================================
+   EMPTY
+========================================= */
+
+.empty{
+
+    text-align:center;
+
+    padding:35px;
+
+    color:#66748a;
+
+}
+
+
+/* =========================================
+   RESPONSIVE
+========================================= */
+
+@media(max-width:1000px){
 
     .stats{
 
@@ -455,44 +790,46 @@ tr:hover{
 
     }
 
-    .actions{
+    .content-grid{
 
-        grid-template-columns:
-            repeat(2,1fr);
+        grid-template-columns:1fr;
 
     }
 
 }
 
-@media(max-width:600px){
 
-    .header{
+@media(max-width:700px){
 
-        padding:0 15px;
+    .sidebar{
+
+        position:static;
+
+        width:100%;
+
+        height:auto;
 
     }
 
-    .container{
+    .main{
 
-        padding:20px;
+        margin-left:0;
+
+    }
+
+    .header{
+
+        flex-direction:column;
+
+        align-items:flex-start;
+
+        gap:15px;
 
     }
 
     .stats{
 
         grid-template-columns:1fr;
-
-    }
-
-    .actions{
-
-        grid-template-columns:1fr;
-
-    }
-
-    .logo{
-
-        font-size:18px;
 
     }
 
@@ -502,70 +839,120 @@ tr:hover{
 
 </head>
 
+
 <body>
 
 
-<header class="header">
+<!-- =====================================
+     SIDEBAR
+===================================== -->
+
+<div class="sidebar">
 
     <div class="logo">
-        ADMIN PANEL
+
+        YSE
+
+        <span>
+            ATTENDANCE ADMIN
+        </span>
+
     </div>
+
+
+    <div class="nav">
+
+        <a
+            href="dashboard.php"
+            class="active"
+        >
+            📊 Dashboard
+        </a>
+
+        <a href="../action.php">
+            🕒 Attendance System
+        </a>
+
+        <a href="../history.php">
+            📋 Attendance History
+        </a>
+
+        <a href="../index.php">
+            🏠 Main Website
+        </a>
+
+        <a href="employees.php">
+    👥 Employees
+</a>
+
+    </div>
+
+</div>
+
+
+<!-- =====================================
+     MAIN
+===================================== -->
+
+<div class="main">
+
+
+<!-- HEADER -->
+
+<div class="header">
+
+    <div>
+
+        <h1>
+            ADMIN DASHBOARD
+        </h1>
+
+        <p>
+            Attendance System Management
+        </p>
+
+    </div>
+
 
     <div class="admin-info">
 
-        <span class="admin-name">
-            👤 <?= htmlspecialchars($_SESSION['admin_username']) ?>
-        </span>
+        <div class="admin-name">
 
-        <a href="logout.php" class="logout">
+            👤
+            <?= htmlspecialchars(
+                $admin_username
+            ) ?>
+
+        </div>
+
+
+        <a
+            href="logout.php"
+            class="logout"
+        >
             Logout
         </a>
 
     </div>
 
-</header>
-
-
-<main class="container">
-
-
-<div class="title">
-
-    <h1>Attendance Dashboard</h1>
-
-    <p>
-        Welcome to the attendance management system.
-    </p>
-
 </div>
 
 
-<!-- STATISTICS -->
+<!-- =====================================
+     STATISTICS
+===================================== -->
 
 <div class="stats">
 
 
     <div class="card">
 
-        <div class="card-title">
-            Verified Users
+        <div class="card-label">
+            TOTAL EMPLOYEES
         </div>
 
-        <div class="card-number">
-            <?= $totalUsers ?>
-        </div>
-
-    </div>
-
-
-    <div class="card">
-
-        <div class="card-title">
-            Today's Attendance
-        </div>
-
-        <div class="card-number">
-            <?= $todayAttendance ?>
+        <div class="card-value">
+            <?= $total_users ?>
         </div>
 
     </div>
@@ -573,12 +960,12 @@ tr:hover{
 
     <div class="card">
 
-        <div class="card-title">
-            Today's Check-in
+        <div class="card-label">
+            VERIFIED EMPLOYEES
         </div>
 
-        <div class="card-number green">
-            <?= $todayCheckin ?>
+        <div class="card-value">
+            <?= $verified_users ?>
         </div>
 
     </div>
@@ -586,12 +973,25 @@ tr:hover{
 
     <div class="card">
 
-        <div class="card-title">
-            Today's Check-out
+        <div class="card-label">
+            TODAY'S ATTENDANCE
         </div>
 
-        <div class="card-number pink">
-            <?= $todayCheckout ?>
+        <div class="card-value">
+            <?= $today_attendance ?>
+        </div>
+
+    </div>
+
+
+    <div class="card">
+
+        <div class="card-label">
+            CURRENTLY WORKING
+        </div>
+
+        <div class="card-value">
+            <?= $currently_working ?>
         </div>
 
     </div>
@@ -600,118 +1000,473 @@ tr:hover{
 </div>
 
 
-<!-- ADMIN ACTIONS -->
+<!-- =====================================
+     TABLES
+===================================== -->
 
-<div class="actions">
-
-    <a href="users.php" class="action-btn">
-        👥 Manage Users
-    </a>
-
-    <a href="attendance.php" class="action-btn">
-        📋 Attendance Records
-    </a>
-
-    <a href="register.php" class="action-btn">
-        ➕ Add User
-    </a>
-
-    <a href="index.php" class="action-btn">
-        🏠 Attendance Screen
-    </a>
-
-</div>
+<div class="content-grid">
 
 
-<!-- RECENT ATTENDANCE -->
+<!-- EMPLOYEES -->
 
-<div class="table-box">
+<div class="panel">
 
-    <div class="table-title">
-        Recent Attendance
+    <div class="panel-header">
+
+        <h2>
+            Employees
+        </h2>
+
+        <span>
+            <?= $total_users ?> USERS
+        </span>
+
     </div>
 
+
+    <div class="table-wrapper">
 
     <table>
 
         <thead>
 
-            <tr>
+        <tr>
 
-                <th>Photo</th>
+            <th>
+                Symbol
+            </th>
 
-                <th>Name</th>
+            <th>
+                Name
+            </th>
 
-                <th>Symbol No</th>
+            <th>
+                Email
+            </th>
 
-                <th>Date & Time</th>
+            <th>
+                Status
+            </th>
 
-                <th>Action</th>
-
-            </tr>
+        </tr>
 
         </thead>
 
 
         <tbody>
 
-        <?php while($row = $recentQuery->fetch_assoc()): ?>
+        <?php
 
-            <tr>
+        if ($users->num_rows > 0) {
 
-                <td>
+            while (
+                $user =
+                $users->fetch_assoc()
+            ) {
 
-                    <?php if(!empty($row['photo'])): ?>
+        ?>
 
-                        <img
-                            src="uploads/<?= htmlspecialchars($row['photo']) ?>"
-                            class="photo"
-                        >
+        <tr>
 
-                    <?php else: ?>
-
-                        👤
-
-                    <?php endif; ?>
-
-                </td>
+            <td>
+                <?= htmlspecialchars(
+                    $user['symbol_no']
+                ) ?>
+            </td>
 
 
-                <td>
-                    <?= htmlspecialchars($row['name']) ?>
-                </td>
+            <td>
+                <?= htmlspecialchars(
+                    $user['name']
+                ) ?>
+            </td>
 
 
-                <td>
-                    <?= htmlspecialchars($row['symbol_no']) ?>
-                </td>
+            <td>
+                <?= htmlspecialchars(
+                    $user['email']
+                ) ?>
+            </td>
 
 
-                <td>
-                    <?= htmlspecialchars($row['date_time']) ?>
-                </td>
+            <td>
 
+            <?php
 
-                <td class="action">
-                    <?= htmlspecialchars($row['action']) ?>
-                </td>
+            if (
+                $user['is_verified'] == 1
+            ) {
 
-            </tr>
+            ?>
 
-        <?php endwhile; ?>
+                <span
+                    class="status verified"
+                >
+                    VERIFIED
+                </span>
+
+            <?php
+
+            } else {
+
+            ?>
+
+                <span
+                    class="status unverified"
+                >
+                    UNVERIFIED
+                </span>
+
+            <?php
+
+            }
+
+            ?>
+
+            </td>
+
+        </tr>
 
         <?php
-echo password_hash("admin123", PASSWORD_DEFAULT);
-?>
+
+            }
+
+        } else {
+
+        ?>
+
+        <tr>
+
+            <td
+                colspan="4"
+                class="empty"
+            >
+
+                No employees found.
+
+            </td>
+
+        </tr>
+
+        <?php
+
+        }
+
+        ?>
 
         </tbody>
 
     </table>
 
+    </div>
+
 </div>
 
 
-</main>
+<!-- TODAY ATTENDANCE -->
+
+<div class="panel">
+
+    <div class="panel-header">
+
+        <h2>
+            Today's Attendance
+        </h2>
+
+        <span>
+            <?= $today_records ?> RECORDS
+        </span>
+
+    </div>
+
+
+    <div class="table-wrapper">
+
+    <table>
+
+        <thead>
+
+        <tr>
+
+            <th>
+                Symbol
+            </th>
+
+            <th>
+                Name
+            </th>
+
+            <th>
+                Action
+            </th>
+
+            <th>
+                Time
+            </th>
+
+        </tr>
+
+        </thead>
+
+
+        <tbody>
+
+        <?php
+
+        if (
+            $attendance->num_rows > 0
+        ) {
+
+            while (
+                $row =
+                $attendance->fetch_assoc()
+            ) {
+
+
+                $action_class = "";
+
+
+                if (
+                    $row['action'] === "出勤"
+                ) {
+
+                    $action_class = "in";
+
+                }
+
+                elseif (
+                    $row['action'] === "休憩入り"
+                ) {
+
+                    $action_class =
+                        "break-in";
+
+                }
+
+                elseif (
+                    $row['action'] === "休憩戻り"
+                ) {
+
+                    $action_class =
+                        "break-out";
+
+                }
+
+                elseif (
+                    $row['action'] === "退勤"
+                ) {
+
+                    $action_class = "out";
+
+                }
+
+        ?>
+
+        <tr>
+
+            <td>
+
+                <?= htmlspecialchars(
+                    $row['symbol_no']
+                ) ?>
+
+            </td>
+
+
+            <td>
+
+                <?= htmlspecialchars(
+                    $row['name']
+                ) ?>
+
+            </td>
+
+
+            <td>
+
+                <span
+                    class="action
+                    <?= $action_class ?>"
+                >
+
+                    <?= htmlspecialchars(
+                        $row['action']
+                    ) ?>
+
+                </span>
+
+            </td>
+
+
+            <td>
+
+                <?= date(
+                    "H:i:s",
+                    strtotime(
+                        $row['date_time']
+                    )
+                ) ?>
+
+            </td>
+
+        </tr>
+
+        <?php
+
+            }
+
+        } else {
+
+        ?>
+
+        <tr>
+
+            <td
+                colspan="4"
+                class="empty"
+            >
+
+                No attendance records today.
+
+            </td>
+
+        </tr>
+
+        <?php
+
+        }
+
+        ?>
+
+        </tbody>
+
+    </table>
+
+    </div>
+
+</div>
+
+
+</div>
+
+
+<!-- =====================================
+     FOOTER INFORMATION
+===================================== -->
+
+<div class="panel">
+
+    <div class="panel-header">
+
+        <h2>
+            System Information
+        </h2>
+
+    </div>
+
+
+    <div style="
+        padding:25px;
+        display:grid;
+        grid-template-columns:
+        repeat(3,1fr);
+        gap:20px;
+    ">
+
+
+        <div>
+
+            <div class="card-label">
+                TODAY'S RECORDS
+            </div>
+
+            <strong
+                style="
+                font-size:25px;
+                color:#00f3ff;
+                "
+            >
+
+                <?= $today_records ?>
+
+            </strong>
+
+        </div>
+
+
+        <div>
+
+            <div class="card-label">
+                SYSTEM DATE
+            </div>
+
+            <strong
+                style="
+                font-size:20px;
+                "
+            >
+
+                <?= date("Y-m-d") ?>
+
+            </strong>
+
+        </div>
+
+
+        <div>
+
+            <div class="card-label">
+                SERVER TIME
+            </div>
+
+            <strong
+                id="clock"
+                style="
+                font-size:20px;
+                color:#39ff14;
+                "
+            >
+
+                <?= date("H:i:s") ?>
+
+            </strong>
+
+        </div>
+
+
+    </div>
+
+</div>
+
+
+</div>
+
+
+<script>
+
+function updateClock(){
+
+    const now = new Date();
+
+    const time =
+        now.toLocaleTimeString(
+            'ja-JP'
+        );
+
+    document.getElementById(
+        "clock"
+    ).textContent = time;
+
+}
+
+
+setInterval(
+    updateClock,
+    1000
+);
+
+</script>
+
 
 </body>
 

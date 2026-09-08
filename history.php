@@ -4,173 +4,330 @@ session_start();
 
 include "db/connect.php";
 
-if (!isset($_SESSION['user_id'])) {
-    exit("Login required");
+
+/* =========================================
+   LOGIN CHECK
+========================================= */
+
+if (
+    !isset($_SESSION['user_id'])
+) {
+
+    exit(
+        "Login required"
+    );
+
 }
 
-$user_id = $_SESSION['user_id'];
+
+$user_id =
+    (int)$_SESSION['user_id'];
 
 
 /* =========================================
-   GET USER
+   GET CURRENT USER
 ========================================= */
 
 $user_sql = $conn->prepare("
-    SELECT symbol_no, name, photo
+
+    SELECT
+
+        symbol_no,
+
+        name,
+
+        photo
+
     FROM users
+
     WHERE id = ?
+
     LIMIT 1
+
 ");
 
-$user_sql->bind_param("i", $user_id);
+
+$user_sql->bind_param(
+    "i",
+    $user_id
+);
+
+
 $user_sql->execute();
 
-$user_result = $user_sql->get_result();
-$user = $user_result->fetch_assoc();
+
+$user_result =
+    $user_sql->get_result();
+
+
+$user =
+    $user_result->fetch_assoc();
+
 
 if (!$user) {
-    exit("User not found");
+
+    exit(
+        "User not found"
+    );
+
 }
 
-$symbol_no = $user['symbol_no'];
-$name      = $user['name'];
-$photo     = $user['photo'];
+
+$symbol_no =
+    $user['symbol_no'];
+
+
+$name =
+    $user['name'];
+
+
+$photo =
+    trim(
+        $user['photo'] ?? ''
+    );
 
 
 /* =========================================
    SELECTED MONTH
 ========================================= */
 
-$selected_month = $_GET['month'] ?? date("Y-m");
+$selected_month =
+    $_GET['month']
+    ?? date("Y-m");
 
-if (!preg_match('/^\d{4}-\d{2}$/', $selected_month)) {
-    $selected_month = date("Y-m");
+
+if (
+    !preg_match(
+        '/^\d{4}-\d{2}$/',
+        $selected_month
+    )
+) {
+
+    $selected_month =
+        date("Y-m");
+
 }
 
-$selected_date = DateTime::createFromFormat(
-    'Y-m',
-    $selected_month
-);
+
+$selected_date =
+    DateTime::createFromFormat(
+        'Y-m',
+        $selected_month
+    );
+
 
 if (!$selected_date) {
-    $selected_month = date("Y-m");
-    $selected_date = new DateTime();
+
+    $selected_month =
+        date("Y-m");
+
+    $selected_date =
+        new DateTime();
+
 }
 
-$year  = $selected_date->format("Y");
-$month = $selected_date->format("m");
+
+$year =
+    (int)$selected_date->format("Y");
+
+
+$month =
+    (int)$selected_date->format("m");
 
 
 /* =========================================
    GET ATTENDANCE FOR CALCULATION
-   ASCENDING ORDER IS IMPORTANT
 ========================================= */
 
 $calc_sql = $conn->prepare("
-    SELECT action, date_time
+
+    SELECT
+
+        action,
+
+        date_time
+
     FROM attendance
+
     WHERE user_id = ?
+
     AND MONTH(date_time) = ?
+
     AND YEAR(date_time) = ?
+
     ORDER BY date_time ASC
+
 ");
 
+
 $calc_sql->bind_param(
+
     "iii",
+
     $user_id,
+
     $month,
+
     $year
+
 );
+
 
 $calc_sql->execute();
 
-$calc_result = $calc_sql->get_result();
+
+$calc_result =
+    $calc_sql->get_result();
 
 
 /* =========================================
-   WORKING HOURS CALCULATION
+   WORKING HOURS
 ========================================= */
 
 $work_seconds = 0;
 
 $start_time = null;
+
 $break_start = null;
+
 $break_seconds = 0;
 
-while ($row = $calc_result->fetch_assoc()) {
 
-    $action = $row['action'];
-    $time   = strtotime($row['date_time']);
+while (
+    $row =
+    $calc_result->fetch_assoc()
+) {
 
 
-    /* -------------------------------
+    $action =
+        $row['action'];
+
+
+    $time =
+        strtotime(
+            $row['date_time']
+        );
+
+
+    /* ================================
        出勤
-    -------------------------------- */
+    ================================= */
 
-    if ($action === "出勤") {
+    if (
+        $action === "出勤"
+    ) {
 
-        // Start a new work session
-        $start_time = $time;
 
-        // Reset break time for this session
-        $break_start = null;
-        $break_seconds = 0;
+        $start_time =
+            $time;
+
+
+        $break_start =
+            null;
+
+
+        $break_seconds =
+            0;
+
     }
 
 
-    /* -------------------------------
+    /* ================================
        休憩入り
-    -------------------------------- */
+    ================================= */
 
-    elseif ($action === "休憩入り") {
+    elseif (
+        $action === "休憩入り"
+    ) {
 
-        // Only start break if currently working
-        if ($start_time !== null && $break_start === null) {
-
-            $break_start = $time;
-        }
-    }
-
-
-    /* -------------------------------
-       休憩戻り
-    -------------------------------- */
-
-    elseif ($action === "休憩戻り") {
 
         if (
-            $start_time !== null &&
-            $break_start !== null
+
+            $start_time !== null
+
+            &&
+
+            $break_start === null
+
         ) {
 
-            $break_seconds +=
-                ($time - $break_start);
+            $break_start =
+                $time;
 
-            $break_start = null;
         }
+
     }
 
 
-    /* -------------------------------
+    /* ================================
+       休憩戻り
+    ================================= */
+
+    elseif (
+        $action === "休憩戻り"
+    ) {
+
+
+        if (
+
+            $start_time !== null
+
+            &&
+
+            $break_start !== null
+
+        ) {
+
+
+            $break_seconds +=
+
+                $time
+                -
+                $break_start;
+
+
+            $break_start =
+                null;
+
+        }
+
+    }
+
+
+    /* ================================
        退勤
-    -------------------------------- */
+    ================================= */
 
-    elseif ($action === "退勤") {
+    elseif (
+        $action === "退勤"
+    ) {
 
-        if ($start_time !== null) {
+
+        if (
+            $start_time !== null
+        ) {
+
 
             /*
-             * If employee forgot to press
-             * 休憩戻り, calculate the break
-             * until 退勤.
+             * If break is still open,
+             * count it until退勤.
              */
 
-            if ($break_start !== null) {
+            if (
+                $break_start !== null
+            ) {
+
 
                 $break_seconds +=
-                    ($time - $break_start);
 
-                $break_start = null;
+                    $time
+                    -
+                    $break_start;
+
+
+                $break_start =
+                    null;
+
             }
 
 
@@ -179,7 +336,10 @@ while ($row = $calc_result->fetch_assoc()) {
              */
 
             $session_seconds =
-                ($time - $start_time);
+
+                $time
+                -
+                $start_time;
 
 
             /*
@@ -187,27 +347,40 @@ while ($row = $calc_result->fetch_assoc()) {
              */
 
             $session_work =
-                $session_seconds - $break_seconds;
+
+                $session_seconds
+                -
+                $break_seconds;
 
 
             /*
-             * Prevent negative value
+             * Prevent negative
              */
 
-            if ($session_work > 0) {
+            if (
+                $session_work > 0
+            ) {
 
-                $work_seconds += $session_work;
+                $work_seconds +=
+                    $session_work;
+
             }
 
 
             /*
-             * Reset session
+             * Reset
              */
 
-            $start_time = null;
-            $break_seconds = 0;
+            $start_time =
+                null;
+
+            $break_seconds =
+                0;
+
         }
+
     }
+
 }
 
 
@@ -215,50 +388,97 @@ while ($row = $calc_result->fetch_assoc()) {
    CONVERT WORK TIME
 ========================================= */
 
-if ($work_seconds < 0) {
+if (
+    $work_seconds < 0
+) {
+
     $work_seconds = 0;
+
 }
 
-$hours = floor($work_seconds / 3600);
 
-$minutes = floor(
-    ($work_seconds % 3600) / 60
-);
+$hours =
+    floor(
+        $work_seconds / 3600
+    );
+
+
+$minutes =
+    floor(
+        ($work_seconds % 3600) / 60
+    );
+
 
 $total_work_time =
-    $hours . "時間 " .
-    $minutes . "分";
+
+    $hours .
+    "時間 " .
+    $minutes .
+    "分";
 
 
 /* =========================================
    GET HISTORY
 ========================================= */
 
+/*
+ * IMPORTANT:
+ *
+ * photo comes from attendance table.
+ *
+ * Therefore each attendance record
+ * displays the photo saved when that
+ * attendance was created.
+ */
+
 $history_sql = $conn->prepare("
+
     SELECT
+
         symbol_no,
+
         name,
+
+        photo,
+
         action,
+
         date_time
+
     FROM attendance
+
     WHERE user_id = ?
+
     AND YEAR(date_time) = ?
+
     AND MONTH(date_time) = ?
+
     ORDER BY date_time ASC
+
 ");
 
+
 $history_sql->bind_param(
+
     "iii",
+
     $user_id,
+
     $year,
+
     $month
+
 );
+
 
 $history_sql->execute();
 
-$history = $history_sql->get_result();
+
+$history =
+    $history_sql->get_result();
 
 ?>
+
 
 <!DOCTYPE html>
 
@@ -283,31 +503,46 @@ $history = $history_sql->get_result();
 ========================================= */
 
 * {
+
     box-sizing: border-box;
+
     margin: 0;
+
     padding: 0;
+
 }
+
 
 body {
 
     min-height: 100vh;
 
     background:
+
         radial-gradient(
+
             circle at top left,
+
             #17243a,
+
             #080b12 45%,
+
             #030406
+
         );
 
     color: white;
 
     font-family:
+
         "Segoe UI",
+
         Arial,
+
         sans-serif;
 
     padding: 25px;
+
 }
 
 
@@ -322,6 +557,7 @@ body {
     max-width: 1100px;
 
     margin: auto;
+
 }
 
 
@@ -344,15 +580,21 @@ body {
     border-radius: 18px;
 
     background:
+
         rgba(15, 20, 32, 0.95);
 
     border:
+
         1px solid
+
         rgba(0, 243, 255, 0.25);
 
     box-shadow:
+
         0 15px 40px
+
         rgba(0,0,0,.35);
+
 }
 
 
@@ -363,6 +605,7 @@ body {
     align-items: center;
 
     gap: 15px;
+
 }
 
 
@@ -381,10 +624,15 @@ body {
     justify-content: center;
 
     background:
+
         linear-gradient(
+
             135deg,
+
             #00f3ff,
+
             #0066ff
+
         );
 
     color: #001014;
@@ -394,8 +642,11 @@ body {
     font-weight: bold;
 
     box-shadow:
+
         0 0 20px
+
         rgba(0,243,255,.35);
+
 }
 
 
@@ -404,6 +655,7 @@ body {
     font-size: 25px;
 
     letter-spacing: 2px;
+
 }
 
 
@@ -414,6 +666,7 @@ body {
     font-size: 13px;
 
     margin-top: 5px;
+
 }
 
 
@@ -424,15 +677,19 @@ body {
     color: white;
 
     border:
+
         1px solid
+
         rgba(0,243,255,.4);
 
     padding:
+
         10px 18px;
 
     border-radius: 10px;
 
     transition: .25s;
+
 }
 
 
@@ -441,6 +698,7 @@ body {
     background: #00f3ff;
 
     color: #001014;
+
 }
 
 
@@ -465,15 +723,23 @@ body {
     border-radius: 18px;
 
     background:
+
         linear-gradient(
+
             135deg,
+
             rgba(0,243,255,.07),
+
             rgba(255,0,85,.04)
+
         );
 
     border:
+
         1px solid
+
         rgba(0,243,255,.18);
+
 }
 
 
@@ -484,8 +750,13 @@ body {
     align-items: center;
 
     gap: 15px;
+
 }
 
+
+/* =========================================
+   PROFILE IMAGE
+========================================= */
 
 .profile {
 
@@ -498,19 +769,57 @@ body {
     object-fit: cover;
 
     border:
+
         2px solid #00f3ff;
 
     box-shadow:
+
         0 0 15px
+
         rgba(0,243,255,.4);
+
 }
 
+
+.profile-placeholder {
+
+    width: 65px;
+
+    height: 65px;
+
+    border-radius: 50%;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    background: #111827;
+
+    color: #00f3ff;
+
+    border:
+
+        2px solid #00f3ff;
+
+    font-size: 24px;
+
+    font-weight: bold;
+
+}
+
+
+/* =========================================
+   USER
+========================================= */
 
 .user-name {
 
     font-size: 20px;
 
     font-weight: bold;
+
 }
 
 
@@ -521,12 +830,18 @@ body {
     color: #7f8da3;
 
     font-size: 13px;
+
 }
 
+
+/* =========================================
+   WORK TIME
+========================================= */
 
 .work-time {
 
     text-align: right;
+
 }
 
 
@@ -537,6 +852,7 @@ body {
     font-size: 12px;
 
     margin-bottom: 5px;
+
 }
 
 
@@ -549,8 +865,11 @@ body {
     font-weight: bold;
 
     text-shadow:
+
         0 0 10px
+
         rgba(57,255,20,.35);
+
 }
 
 
@@ -573,11 +892,15 @@ body {
     border-radius: 14px;
 
     background:
+
         rgba(15,20,32,.95);
 
     border:
+
         1px solid
+
         rgba(255,255,255,.06);
+
 }
 
 
@@ -586,12 +909,14 @@ body {
     font-size: 18px;
 
     font-weight: bold;
+
 }
 
 
 .month span {
 
     color: #00f3ff;
+
 }
 
 
@@ -600,6 +925,7 @@ body {
     color: #7f8da3;
 
     font-size: 13px;
+
 }
 
 
@@ -614,15 +940,21 @@ body {
     border-radius: 16px;
 
     background:
+
         rgba(10,13,20,.96);
 
     border:
+
         1px solid
+
         rgba(0,243,255,.15);
 
     box-shadow:
+
         0 15px 50px
+
         rgba(0,0,0,.35);
+
 }
 
 
@@ -630,20 +962,27 @@ table {
 
     width: 100%;
 
-    min-width: 650px;
+    min-width: 780px;
 
     border-collapse: collapse;
+
 }
 
 
 thead {
 
     background:
+
         linear-gradient(
+
             90deg,
+
             rgba(0,243,255,.15),
+
             rgba(0,102,255,.12)
+
         );
+
 }
 
 
@@ -660,8 +999,11 @@ th {
     letter-spacing: 1px;
 
     border-bottom:
+
         1px solid
+
         rgba(0,243,255,.2);
+
 }
 
 
@@ -674,21 +1016,27 @@ td {
     font-size: 14px;
 
     border-bottom:
+
         1px solid
+
         rgba(255,255,255,.05);
+
 }
 
 
 tbody tr {
 
     transition: .2s;
+
 }
 
 
 tbody tr:hover {
 
     background:
+
         rgba(0,243,255,.06);
+
 }
 
 
@@ -703,6 +1051,7 @@ tbody tr:hover {
     color: #68768b;
 
     font-family: monospace;
+
 }
 
 
@@ -719,6 +1068,7 @@ tbody tr:hover {
     font-family: monospace;
 
     font-size: 14px;
+
 }
 
 
@@ -727,6 +1077,69 @@ tbody tr:hover {
     color: #00f3ff;
 
     margin-left: 5px;
+
+}
+
+
+/* =========================================
+   HISTORY IMAGE
+========================================= */
+
+.history-photo {
+
+    width: 48px;
+
+    height: 48px;
+
+    border-radius: 50%;
+
+    object-fit: cover;
+
+    border:
+
+        2px solid
+
+        #00f3ff;
+
+    box-shadow:
+
+        0 0 10px
+
+        rgba(0,243,255,.35);
+
+    display: block;
+
+}
+
+
+.history-photo-placeholder {
+
+    width: 48px;
+
+    height: 48px;
+
+    border-radius: 50%;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    background: #111827;
+
+    border:
+
+        2px solid
+
+        #3b4555;
+
+    color: #68768b;
+
+    font-size: 9px;
+
+    text-align: center;
+
 }
 
 
@@ -743,6 +1156,7 @@ tbody tr:hover {
     font-size: 16px;
 
     white-space: nowrap;
+
 }
 
 
@@ -765,6 +1179,7 @@ tbody tr:hover {
     font-size: 13px;
 
     font-weight: bold;
+
 }
 
 
@@ -779,6 +1194,7 @@ tbody tr:hover {
     border-radius: 50%;
 
     background: currentColor;
+
 }
 
 
@@ -789,11 +1205,15 @@ tbody tr:hover {
     color: #39ff14;
 
     background:
+
         rgba(57,255,20,.08);
 
     border:
+
         1px solid
+
         rgba(57,255,20,.25);
+
 }
 
 
@@ -804,11 +1224,15 @@ tbody tr:hover {
     color: #ffaa00;
 
     background:
+
         rgba(255,170,0,.08);
 
     border:
+
         1px solid
+
         rgba(255,170,0,.25);
+
 }
 
 
@@ -819,11 +1243,15 @@ tbody tr:hover {
     color: #00f3ff;
 
     background:
+
         rgba(0,243,255,.08);
 
     border:
+
         1px solid
+
         rgba(0,243,255,.25);
+
 }
 
 
@@ -834,11 +1262,15 @@ tbody tr:hover {
     color: #ff0055;
 
     background:
+
         rgba(255,0,85,.08);
 
     border:
+
         1px solid
+
         rgba(255,0,85,.25);
+
 }
 
 
@@ -853,6 +1285,7 @@ tbody tr:hover {
     padding: 50px;
 
     color: #66748a;
+
 }
 
 
@@ -869,6 +1302,7 @@ tbody tr:hover {
     font-size: 12px;
 
     margin-top: 20px;
+
 }
 
 
@@ -878,9 +1312,13 @@ tbody tr:hover {
 
 @media(max-width:700px) {
 
+
     body {
+
         padding: 12px;
+
     }
+
 
     .header {
 
@@ -889,28 +1327,37 @@ tbody tr:hover {
         align-items: stretch;
 
         gap: 15px;
+
     }
+
 
     .back-btn {
 
         text-align: center;
+
     }
+
 
     .user-card {
 
         flex-direction: column;
 
         align-items: flex-start;
+
     }
+
 
     .work-time {
 
         text-align: left;
+
     }
+
 
     .title h1 {
 
         font-size: 20px;
+
     }
 
 }
@@ -932,11 +1379,14 @@ tbody tr:hover {
 
 <div class="header">
 
+
     <div class="header-left">
+
 
         <div class="logo">
             Y
         </div>
+
 
         <div class="title">
 
@@ -950,6 +1400,7 @@ tbody tr:hover {
 
         </div>
 
+
     </div>
 
 
@@ -960,6 +1411,7 @@ tbody tr:hover {
         ← 戻る
     </a>
 
+
 </div>
 
 
@@ -969,75 +1421,137 @@ tbody tr:hover {
 
 <div class="user-card">
 
+
     <div class="user-info">
 
-        <?php if (!empty($photo)) { ?>
+
+        <?php
+
+        /*
+         * users.photo contains the complete
+         * path such as:
+         *
+         * uploads/employee_38_xxx.jpg
+         */
+
+        if (
+
+            $photo !== ''
+
+            &&
+
+            $photo !== 'default.png'
+
+        ):
+
+        ?>
+
 
             <img
-                src="uploads/<?=
-                    htmlspecialchars($photo)
-                ?>"
+
+                src="<?= htmlspecialchars(
+                    $photo,
+                    ENT_QUOTES,
+                    'UTF-8'
+                ) ?>"
+
                 class="profile"
+
                 alt="Profile"
-            >
 
-        <?php } else { ?>
-
-            <div
-                class="profile"
-                style="
-                    display:flex;
-                    align-items:center;
-                    justify-content:center;
-                    background:#111827;
-                    color:#00f3ff;
-                    font-size:24px;
-                    font-weight:bold;
+                onerror="
+                    this.style.display='none';
+                    this.nextElementSibling
+                    .style.display='flex';
                 "
             >
 
+
+            <div
+                class="profile-placeholder"
+                style="display:none;"
+            >
+
                 <?= htmlspecialchars(
-                    mb_substr($name, 0, 1)
+                    mb_substr(
+                        $name,
+                        0,
+                        1
+                    )
                 ) ?>
 
             </div>
 
-        <?php } ?>
+
+        <?php else: ?>
+
+
+            <div class="profile-placeholder">
+
+                <?= htmlspecialchars(
+                    mb_substr(
+                        $name,
+                        0,
+                        1
+                    )
+                ) ?>
+
+            </div>
+
+
+        <?php endif; ?>
 
 
         <div>
 
+
             <div class="user-name">
 
-                <?= htmlspecialchars($name) ?>
+                <?= htmlspecialchars(
+                    $name
+                ) ?>
 
             </div>
+
 
             <div class="symbol">
 
                 Symbol No.
-                <?= htmlspecialchars($symbol_no) ?>
+
+                <?= htmlspecialchars(
+                    $symbol_no
+                ) ?>
 
             </div>
 
+
         </div>
+
 
     </div>
 
 
     <div class="work-time">
 
+
         <div class="work-label">
+
             THIS MONTH'S WORK TIME
+
         </div>
+
 
         <div class="work-value">
 
-            <?= $total_work_time ?>
+            <?= htmlspecialchars(
+                $total_work_time
+            ) ?>
 
         </div>
 
+
     </div>
+
 
 </div>
 
@@ -1048,17 +1562,22 @@ tbody tr:hover {
 
 <div class="month-bar">
 
+
     <div class="month">
 
-        <?= $year ?> /
+        <?= $year ?>
+
+        /
 
         <span>
+
             <?= str_pad(
                 $month,
                 2,
                 "0",
                 STR_PAD_LEFT
             ) ?>
+
         </span>
 
     </div>
@@ -1067,34 +1586,52 @@ tbody tr:hover {
     <div class="records">
 
         <?= $history->num_rows ?>
+
         records
 
     </div>
+
 
 </div>
 
 
 <!-- =========================================
-     HISTORY
+     HISTORY TABLE
 ========================================= -->
 
 <div class="table-wrapper">
 
+
 <table>
+
 
 <thead>
 
 <tr>
 
-    <th>No.</th>
+    <th>
+        No.
+    </th>
 
-    <th>Date</th>
+    <th>
+        Date
+    </th>
 
-    <th>Name</th>
+    <th>
+        Name
+    </th>
 
-    <th>Action</th>
+    <th>
+        Image
+    </th>
 
-    <th>Time</th>
+    <th>
+        Action
+    </th>
+
+    <th>
+        Time
+    </th>
 
 </tr>
 
@@ -1106,57 +1643,111 @@ tbody tr:hover {
 
 <?php
 
+
 $count = 1;
 
 
-/* Japanese weekday */
+/* Japanese weekdays */
 
 $weekdays = [
+
     "日",
+
     "月",
+
     "火",
+
     "水",
+
     "木",
+
     "金",
+
     "土"
+
 ];
 
 
-if ($history->num_rows > 0) {
-
-    while ($row = $history->fetch_assoc()) {
-
-       $symbol_no = $row['symbol_no'];
-        $name = $row['name'];
-        $action = $row['action'];
-
-        $timestamp = strtotime($row['date_time']);
+if (
+    $history->num_rows > 0
+):
 
 
-        /* Action color */
+    while (
+        $row =
+        $history->fetch_assoc()
+    ):
 
-        if ($action === "出勤") {
+
+        /* =================================
+           GET RECORD DATA
+        ================================= */
+
+        $symbol_no =
+            $row['symbol_no'];
+
+
+        $record_name =
+            $row['name'];
+
+
+        /*
+         * IMPORTANT:
+         *
+         * This photo comes from
+         * attendance.photo.
+         */
+
+        $record_photo =
+            trim(
+                $row['photo'] ?? ''
+            );
+
+
+        $action =
+            $row['action'];
+
+
+        $timestamp =
+            strtotime(
+                $row['date_time']
+            );
+
+
+        /* =================================
+           ACTION COLOR
+        ================================= */
+
+        if (
+            $action === "出勤"
+        ) {
 
             $action_class =
                 "clock-in";
 
         }
 
-        elseif ($action === "休憩入り") {
+        elseif (
+            $action === "休憩入り"
+        ) {
 
             $action_class =
                 "break-start";
 
         }
 
-        elseif ($action === "休憩戻り") {
+        elseif (
+            $action === "休憩戻り"
+        ) {
 
             $action_class =
                 "break-end";
 
         }
 
-        elseif ($action === "退勤") {
+        elseif (
+            $action === "退勤"
+        ) {
 
             $action_class =
                 "clock-out";
@@ -1170,28 +1761,45 @@ if ($history->num_rows > 0) {
         }
 
 
-        /* Date */
+        /* =================================
+           DATE
+        ================================= */
 
         $display_date =
-            date("Y/m/d", $timestamp);
+            date(
+                "Y/m/d",
+                $timestamp
+            );
 
 
-        /* Weekday */
+        /* =================================
+           WEEKDAY
+        ================================= */
 
         $weekday =
             $weekdays[
-                date("w", $timestamp)
+                (int)date(
+                    "w",
+                    $timestamp
+                )
             ];
 
 
-        /* Time */
+        /* =================================
+           TIME
+        ================================= */
 
         $display_time =
-            date("H:i:s", $timestamp);
+            date(
+                "H:i:s",
+                $timestamp
+            );
 
-        ?>
+?>
 
-        <tr>
+
+<tr>
+
 
     <!-- NUMBER -->
 
@@ -1211,13 +1819,18 @@ if ($history->num_rows > 0) {
 
     <td class="date">
 
-        <?= date("Y/m/d", $timestamp) ?>
+        <?= htmlspecialchars(
+            $display_date
+        ) ?>
+
 
         <span class="day">
 
-            (<?= $weekdays[
-                date("w", $timestamp)
-            ] ?>)
+            (
+            <?= htmlspecialchars(
+                $weekday
+            ) ?>
+            )
 
         </span>
 
@@ -1228,7 +1841,69 @@ if ($history->num_rows > 0) {
 
     <td>
 
-        <?= htmlspecialchars($name) ?>
+        <?= htmlspecialchars(
+            $record_name
+        ) ?>
+
+    </td>
+
+
+    <!-- IMAGE -->
+
+    <td>
+
+
+        <?php if (
+
+            $record_photo !== ''
+
+            &&
+
+            $record_photo !== 'default.png'
+
+        ): ?>
+
+
+            <img
+
+                src="<?= htmlspecialchars(
+                    $record_photo,
+                    ENT_QUOTES,
+                    'UTF-8'
+                ) ?>"
+
+                class="history-photo"
+
+                alt="Employee photo"
+
+                onerror="
+                    this.style.display='none';
+                    this.nextElementSibling
+                    .style.display='flex';
+                "
+            >
+
+
+            <div
+                class="history-photo-placeholder"
+                style="display:none;"
+            >
+                No Image
+            </div>
+
+
+        <?php else: ?>
+
+
+            <div class="history-photo-placeholder">
+
+                No Image
+
+            </div>
+
+
+        <?php endif; ?>
+
 
     </td>
 
@@ -1237,9 +1912,18 @@ if ($history->num_rows > 0) {
 
     <td>
 
-        <span class="action <?= $action_class ?>">
+        <span
+            class="
+                action
+                <?= htmlspecialchars(
+                    $action_class
+                ) ?>
+            "
+        >
 
-            <?= htmlspecialchars($action) ?>
+            <?= htmlspecialchars(
+                $action
+            ) ?>
 
         </span>
 
@@ -1250,28 +1934,34 @@ if ($history->num_rows > 0) {
 
     <td class="time">
 
-        <?= date("H:i:s", $timestamp) ?>
+        <?= htmlspecialchars(
+            $display_time
+        ) ?>
 
     </td>
 
+
 </tr>
 
-        <?php
+
+<?php
+
 
         $count++;
 
-    }
 
-}
+    endwhile;
 
-else {
+
+else:
 
 ?>
+
 
 <tr>
 
     <td
-        colspan="5"
+        colspan="6"
         class="empty"
     >
 
@@ -1281,23 +1971,27 @@ else {
 
 </tr>
 
-<?php
 
-}
-
-?>
+<?php endif; ?>
 
 
 </tbody>
 
+
 </table>
+
 
 </div>
 
 
+<!-- =========================================
+     FOOTER
+========================================= -->
+
 <div class="footer">
 
     YSE Attendance System
+
     © <?= date("Y") ?>
 
 </div>

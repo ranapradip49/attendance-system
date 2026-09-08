@@ -262,10 +262,46 @@ body {
 
 }
 
+.password-box {
+    position: relative;
+    width: 100%;
+}
+
+.password-box input {
+    width: 100%;
+    padding-right: 45px;
+    box-sizing: border-box;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 20px;
+    user-select: none;
+}
+
 
 
 </style>
 </head>
+
+<script>
+function togglePassword() {
+    const password = document.getElementById("password");
+    const icon = document.querySelector(".toggle-password");
+
+    if (password.type === "password") {
+        password.type = "text";
+        icon.textContent = "🙈";
+    } else {
+        password.type = "password";
+        icon.textContent = "👁";
+    }
+}
+</script>
 
 <body>
 
@@ -276,8 +312,10 @@ body {
     <form action="send_otp.php" method="POST">
         <input type="text" name="name" placeholder="Name" required>
         <input type="email" name="email" placeholder="Email" required>
-        <input type="password" name="password" placeholder="Password" required>
-
+        <div class="password-box">
+    <input type="password" name="password" id="password" placeholder="Password" required>
+    <span class="toggle-password" onclick="togglePassword()">👁</span>
+</div>
         <button type="submit">Register</button>
     </form>
 

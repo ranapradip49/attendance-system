@@ -1,61 +1,3 @@
-<?php
-
-session_start();
-
-include "../db/connect.php";
-
-$error = "";
-
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-
-    $username = trim($_POST['username'] ?? '');
-    $password = $_POST['password'] ?? '';
-
-    if ($username === "" || $password === "") {
-
-        $error = "Please enter username and password.";
-
-    } else {
-
-        $stmt = $conn->prepare("
-            SELECT id, username, password
-            FROM admins
-            WHERE username = ?
-            LIMIT 1
-        ");
-
-        $stmt->bind_param("s", $username);
-        $stmt->execute();
-
-        $result = $stmt->get_result();
-
-        if ($result->num_rows === 1) {
-
-            $admin = $result->fetch_assoc();
-
-            if (password_verify($password, $admin['password'])) {
-
-                $_SESSION['admin_id'] = $admin['id'];
-                $_SESSION['admin_username'] = $admin['username'];
-
-                header("Location: dashboard.php");
-                exit();
-
-            } else {
-
-                $error = "Incorrect password.";
-
-            }
-
-        } else {
-
-            $error = "Admin account not found.";
-
-        }
-    }
-}
-
-?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -63,7 +5,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 <meta charset="UTF-8">
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0">
 
 <title>Admin Login</title>
 
@@ -80,59 +23,181 @@ body{
 
     min-height:100vh;
 
-    background:#050505;
-
     display:flex;
 
     justify-content:center;
 
     align-items:center;
 
+    background:#050505;
+
     color:white;
+
+    overflow:hidden;
+}
+
+
+/* ================================
+   RGB BACKGROUND
+================================ */
+
+body::before{
+
+    content:"";
+
+    position:fixed;
+
+    width:500px;
+    height:500px;
+
+    background:#00ffff;
+
+    border-radius:50%;
+
+    filter:blur(180px);
+
+    opacity:.15;
+
+    top:-150px;
+    left:-150px;
+
+    animation:move1 8s infinite alternate;
+}
+
+
+body::after{
+
+    content:"";
+
+    position:fixed;
+
+    width:500px;
+    height:500px;
+
+    background:#ff00ff;
+
+    border-radius:50%;
+
+    filter:blur(180px);
+
+    opacity:.15;
+
+    bottom:-150px;
+    right:-150px;
+
+    animation:move2 8s infinite alternate;
+}
+
+
+@keyframes move1{
+
+    from{
+        transform:translate(0,0);
+    }
+
+    to{
+        transform:translate(250px,200px);
+    }
 
 }
 
+
+@keyframes move2{
+
+    from{
+        transform:translate(0,0);
+    }
+
+    to{
+        transform:translate(-250px,-200px);
+    }
+
+}
+
+
+/* ================================
+   LOGIN BOX
+================================ */
+
 .login-box{
+
+    position:relative;
+
+    z-index:2;
 
     width:400px;
 
     padding:40px;
 
-    background:#0d0e15;
+    background:rgba(0,0,0,.75);
 
     border:2px solid #00ffff;
 
     border-radius:25px;
 
-    box-shadow:
-        0 0 20px #00ffff,
-        0 0 50px rgba(255,0,255,.3);
-
-}
-
-h1{
-
     text-align:center;
 
-    margin-bottom:10px;
+    box-shadow:
+
+        0 0 20px #00ffff,
+
+        0 0 50px #ff00ff;
+
+    backdrop-filter:blur(15px);
+}
+
+
+.logo{
+
+    font-size:60px;
+
+    margin-bottom:15px;
 
     color:#00ffff;
 
     text-shadow:
-        0 0 10px cyan,
-        0 0 25px cyan;
 
+        0 0 10px cyan,
+
+        0 0 30px cyan,
+
+        0 0 50px blue;
 }
 
-.subtitle{
 
-    text-align:center;
+h1{
+
+    font-size:30px;
+
+    margin-bottom:8px;
+
+    text-shadow:
+
+        0 0 10px cyan;
+}
+
+
+.subtitle{
 
     color:#aaa;
 
     margin-bottom:30px;
 
+    font-size:14px;
 }
+
+
+/* ================================
+   INPUT
+================================ */
+
+.input-group{
+
+    text-align:left;
+
+    margin-bottom:20px;
+}
+
 
 label{
 
@@ -142,7 +207,9 @@ label{
 
     color:#00ffff;
 
+    font-weight:bold;
 }
+
 
 input{
 
@@ -150,27 +217,32 @@ input{
 
     padding:14px;
 
-    margin-bottom:20px;
+    background:#0b0b0b;
 
     border:1px solid #00ffff;
 
     border-radius:10px;
 
-    background:#050505;
-
     color:white;
-
-    outline:none;
 
     font-size:16px;
 
+    outline:none;
 }
+
 
 input:focus{
 
-    box-shadow:0 0 15px #00ffff;
+    box-shadow:
+
+        0 0 15px cyan;
 
 }
+
+
+/* ================================
+   BUTTON
+================================ */
 
 button{
 
@@ -178,13 +250,15 @@ button{
 
     padding:15px;
 
-    border:2px solid #00ff99;
+    margin-top:10px;
 
-    border-radius:30px;
+    border:none;
 
-    background:transparent;
+    border-radius:50px;
 
-    color:#00ff99;
+    background:#00ffff;
+
+    color:#000;
 
     font-size:18px;
 
@@ -194,41 +268,31 @@ button{
 
     transition:.3s;
 
+    box-shadow:
+
+        0 0 15px cyan;
 }
+
 
 button:hover{
 
-    background:#00ff99;
+    transform:scale(1.05);
 
-    color:#000;
+    box-shadow:
 
-    box-shadow:0 0 25px #00ff99;
+        0 0 20px cyan,
 
+        0 0 40px cyan;
 }
 
-.error{
 
-    margin-bottom:20px;
-
-    padding:12px;
-
-    text-align:center;
-
-    border:1px solid #ff0055;
-
-    border-radius:10px;
-
-    color:#ff0055;
-
-    background:rgba(255,0,85,.1);
-
-}
+/* ================================
+   BACK
+================================ */
 
 .back{
 
     display:block;
-
-    text-align:center;
 
     margin-top:25px;
 
@@ -236,67 +300,98 @@ button:hover{
 
     text-decoration:none;
 
+    font-size:14px;
 }
+
 
 .back:hover{
 
     color:#00ffff;
-
 }
 
 </style>
 
 </head>
 
+
 <body>
+
 
 <div class="login-box">
 
-    <h1>ADMIN LOGIN</h1>
-
-    <div class="subtitle">
-        Attendance Management System
+    <div class="logo">
+        🔐
     </div>
 
-    <?php if ($error !== ""): ?>
+    <h1>
+        ADMIN LOGIN
+    </h1>
 
-        <div class="error">
-            <?= htmlspecialchars($error) ?>
+    <div class="subtitle">
+        YSE Attendance System
+    </div>
+
+
+    <form
+        action="login_check.php"
+        method="POST"
+    >
+
+
+        <div class="input-group">
+
+            <label>
+                Username
+            </label>
+
+            <input
+                type="text"
+                name="username"
+                placeholder="Enter username"
+                required
+            >
+
         </div>
 
-    <?php endif; ?>
 
-    <form method="POST">
+        <div class="input-group">
 
-        <label>Username</label>
+            <label>
+                Password
+            </label>
 
-        <input
-            type="text"
-            name="username"
-            placeholder="Enter admin username"
-            required
-        >
+            <input
+                type="password"
+                name="password"
+                placeholder="Enter password"
+                required
+            >
 
-        <label>Password</label>
+        </div>
 
-        <input
-            type="password"
-            name="password"
-            placeholder="Enter admin password"
-            required
-        >
 
         <button type="submit">
+
             LOGIN
+
         </button>
+
 
     </form>
 
-    <a href="index.php" class="back">
+
+    <a
+        href="../index.php"
+        class="back"
+    >
+
         ← Back to Attendance System
+
     </a>
 
+
 </div>
+
 
 </body>
 
